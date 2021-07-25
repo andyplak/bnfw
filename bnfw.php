@@ -4,7 +4,7 @@
  * Plugin Name: Better Notifications for WP
  * Plugin URI: https://wordpress.org/plugins/bnfw/
  * Description: Supercharge your WordPress notifications using a WYSIWYG editor and shortcodes. Default and new notifications available. Add more power with Add-ons.
- * Version: 1.8.6
+ * Version: 1.8.7-qc
  * Requires at least: 4.8
  * Requires PHP: 5.6
  * Author: Made with Fuel
@@ -1221,9 +1221,13 @@ class BNFW {
                 'notification_type' => $type,
             );
 
-            if ( ! in_array( $notification_data, $transient ) ) {
-                $transient[] = $notification_data;
-                set_transient( 'bnfw-async-notifications', $transient, 600 );
+            if( $type == 'new-sales_dir_ltg' ) {
+                $this->engine->send_notification( $this->notifier->read_settings( $notification_data[ 'notification_id' ] ), $notification_data[ 'ref_id' ] );
+            } else{
+                if ( ! in_array( $notification_data, $transient ) ) {
+                    $transient[] = $notification_data;
+                    set_transient( 'bnfw-async-notifications', $transient, 600 );
+                }
             }
         }
     }
