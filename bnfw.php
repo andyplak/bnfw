@@ -1209,12 +1209,21 @@ class BNFW {
      */
     public function send_notification_async( $type, $ref_id ) {
         $notifications = $this->notifier->get_notifications( $type, false );
+
+        // Aquire Lock
+        set_transient( 'bnfw-async-lock', true, 30);
+error_log( 'send_notification_async()' );
+error_log( print_r($type, true) );
+error_log( 'locking' );
+
         foreach ( $notifications as $notification ) {
+error_log( print_r( $notification, true ) );
             $transient = get_transient( 'bnfw-async-notifications' );
+
             if ( ! is_array( $transient ) ) {
                 $transient = array();
             }
-
+error_log( print_r( $transient, true ) );
             $notification_data = array(
                 'ref_id'            => $ref_id,
                 'notification_id'   => $notification->ID,
@@ -1223,9 +1232,18 @@ class BNFW {
 
             if ( ! in_array( $notification_data, $transient ) ) {
                 $transient[] = $notification_data;
-                set_transient( 'bnfw-async-notifications', $transient, 600 );
+error_log( print_r(
+                set_transient( 'bnfw-async-notifications', $transient, 600 )           ,//;
+                true
+));
+error_log( print_r( $transient, true ) );
             }
+error_log('--');
         }
+
+        // Release lock
+        delete_transient( 'bnfw-async-lock' );
+error_log( 'un-locking' );
     }
 
     /**
@@ -1407,12 +1425,27 @@ class BNFW {
             return;
         }
 
-        $transient = get_transient( 'bnfw-async-notifications' );
-        if ( is_array( $transient ) ) {
-            delete_transient( 'bnfw-async-notifications' );
-            foreach ( $transient as $id_pairs ) {
-                $this->engine->send_notification( $this->notifier->read_settings( $id_pairs[ 'notification_id' ] ), $id_pairs[ 'ref_id' ] );
+error_log('on_shutdown()');
+#error_log( print_r( get_transient( 'bnfw-async-lock' ), true ) );
+
+        // Check if locked
+        if( !get_transient( 'bnfw-async-lock' ) ) {
+#error_log( 'bnfw-asyc-lock not set, sending notifications');
+            $transient = get_transient( 'bnfw-async-notifications' );
+            if ( is_array( $transient ) ) {
+error_log('Checking lock...');
+error_log( 'bnfw-asyc-lock not set, sending notifications');
+error_log( print_r( $transient, true ) );
+                delete_transient( 'bnfw-async-notifications' );
+                foreach ( $transient as $id_pairs ) {
+                    $this->engine->send_notification( $this->notifier->read_settings( $id_pairs[ 'notification_id' ] ), $id_pairs[ 'ref_id' ] );
+                }
             }
+        }
+
+        else{
+            error_log('on_shutdown: Checking lock...');
+            error_log('bnfw-asyc-lock in place. Not sending.');
         }
     }
 
