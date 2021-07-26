@@ -1208,7 +1208,12 @@ class BNFW {
      * @param mixed $ref_id Reference data.
      */
     public function send_notification_async( $type, $ref_id ) {
+
+        // Aquire Lock
+        set_transient( 'bnfw-async-lock', true, 30);
+
         $notifications = $this->notifier->get_notifications( $type, false );
+
         foreach ( $notifications as $notification ) {
             $transient = get_transient( 'bnfw-async-notifications' );
             if ( ! is_array( $transient ) ) {
@@ -1226,6 +1231,9 @@ class BNFW {
                 set_transient( 'bnfw-async-notifications', $transient, 600 );
             }
         }
+
+        // Release lock
+        delete_transient( 'bnfw-async-lock' );
     }
 
     /**
@@ -1407,11 +1415,14 @@ class BNFW {
             return;
         }
 
-        $transient = get_transient( 'bnfw-async-notifications' );
-        if ( is_array( $transient ) ) {
-            delete_transient( 'bnfw-async-notifications' );
-            foreach ( $transient as $id_pairs ) {
-                $this->engine->send_notification( $this->notifier->read_settings( $id_pairs[ 'notification_id' ] ), $id_pairs[ 'ref_id' ] );
+        // Check if async queue is locked
+        if( !get_transient( 'bnfw-async-lock' ) ) {
+            $transient = get_transient( 'bnfw-async-notifications' );
+            if ( is_array( $transient ) ) {
+                delete_transient( 'bnfw-async-notifications' );
+                foreach ( $transient as $id_pairs ) {
+                    $this->engine->send_notification( $this->notifier->read_settings( $id_pairs[ 'notification_id' ] ), $id_pairs[ 'ref_id' ] );
+                }
             }
         }
     }
